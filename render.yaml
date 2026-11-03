@@ -13,5 +13,7 @@ services:
         value: 0.0.0.0
       - key: NODE_ENV
         value: production
+      - key: CAPACITOR_ORIGINS
+        value: https://localhost
       - key: NODE_VERSION
         value: 24.22.1

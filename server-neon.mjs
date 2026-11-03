@@ -32,13 +32,14 @@ await pool.query('INSERT INTO app_data(id,document) VALUES(1,$1::jsonb) ON CONFL
 const port = Number(process.env.PORT || 3000);
 const host = process.env.HOST || '127.0.0.1';
 const production = process.env.NODE_ENV === 'production';
+const capacitorOrigins = new Set((process.env.CAPACITOR_ORIGINS || 'https://localhost').split(',').map(value => value.trim()).filter(Boolean));
 const sessionDays = 7, maxBody = 18 * 1024 * 1024, attempts = new Map();
 
 function send(res, status, data, headers = {}) {
-  res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-origin', 'Content-Security-Policy': "default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; script-src 'self' 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'", ...headers });
+  res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-origin', 'Content-Security-Policy': "default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; worker-src 'self' blob: https://cdn.jsdelivr.net; connect-src 'self' https://cdn.jsdelivr.net https://tessdata.projectnaptha.com; base-uri 'none'; frame-ancestors 'none'; form-action 'self'", ...headers });
   res.end(JSON.stringify(data));
 }
-function cookie(value, maxAge = sessionDays * 86400) { return `roomwise_session=${value}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${maxAge}${production ? '; Secure' : ''}`; }
+function cookie(value, maxAge = sessionDays * 86400, crossSite = false) { return `roomwise_session=${value}; Path=/; HttpOnly; SameSite=${crossSite ? 'None' : 'Strict'}; Max-Age=${maxAge}${production ? '; Secure' : ''}`; }
 function cookies(req) { return Object.fromEntries((req.headers.cookie || '').split(';').map(x => x.trim().split(/=(.*)/s).slice(0, 2)).filter(x => x[0])); }
 async function sessionFor(req) {
   const token = cookies(req).roomwise_session;
@@ -50,7 +51,7 @@ async function sessionFor(req) {
 }
 function sameOrigin(req) {
   if (!req.headers.origin) return true;
-  try { return new URL(req.headers.origin).host === req.headers.host; } catch { return false; }
+  try { const origin = new URL(req.headers.origin); return origin.host === req.headers.host || capacitorOrigins.has(origin.origin); } catch { return false; }
 }
 async function body(req) {
   let size = 0; const chunks = [];
@@ -85,6 +86,9 @@ function exportRows(d) {
 const server=http.createServer(async(req,res)=>{
   try {
     const url=new URL(req.url,`http://${req.headers.host||'localhost'}`);
+    const requestOrigin=req.headers.origin||'',capacitorRequest=capacitorOrigins.has(requestOrigin);
+    if(capacitorRequest){res.setHeader('Access-Control-Allow-Origin',requestOrigin);res.setHeader('Access-Control-Allow-Credentials','true');res.setHeader('Access-Control-Allow-Methods','GET, POST, PUT, OPTIONS');res.setHeader('Access-Control-Allow-Headers','Content-Type, If-Match');res.setHeader('Vary','Origin')}
+    if(req.method==='OPTIONS'){if(!capacitorRequest)return send(res,403,{error:'Request origin rejected.'});res.writeHead(204);return res.end()}
     if(req.method==='GET'&&url.pathname==='/healthz')return send(res,200,{ok:true});
     if(req.method==='GET'&&url.pathname==='/api/status'){const a=await sql`SELECT id FROM admin WHERE id=1`;return send(res,200,{configured:!!a.length,authenticated:!!(await sessionFor(req))})}
     if(req.method==='POST'&&['/api/setup','/api/login','/api/logout','/api/password'].includes(url.pathname)){
@@ -94,17 +98,17 @@ const server=http.createServer(async(req,res)=>{
       }else if(url.pathname==='/api/login'){
         const wait=blocked(req);if(wait)return send(res,429,{error:`Too many attempts. Try again in ${wait} seconds.`});const rows=await sql`SELECT salt,password_hash FROM admin WHERE id=1`;if(!rows.length||!matches(String(input.password||''),rows[0])){failed(req);return send(res,401,{error:'Password did not match.'})}attempts.delete(req.socket.remoteAddress||'unknown');
       }else if(url.pathname==='/api/logout'){
-        const hash=await sessionFor(req);if(hash)await sql`DELETE FROM sessions WHERE token_hash=${hash}`;return send(res,200,{ok:true},{'Set-Cookie':cookie('',0)});
+        const hash=await sessionFor(req);if(hash)await sql`DELETE FROM sessions WHERE token_hash=${hash}`;return send(res,200,{ok:true},{'Set-Cookie':cookie('',0,capacitorRequest)});
       }else if(url.pathname==='/api/password'){
-        if(!await sessionFor(req))return send(res,401,{error:'Sign in to change the password.'});const rows=await sql`SELECT salt,password_hash FROM admin WHERE id=1`;if(!rows.length||!matches(String(input.currentPassword||''),rows[0]))return send(res,401,{error:'Current password did not match.'});if(!validPassword(input.newPassword))return send(res,400,{error:'Choose a new password with at least 12 characters.'});const salt=randomBytes(16).toString('hex');await sql`UPDATE admin SET salt=${salt},password_hash=${scryptSync(input.newPassword,salt,64).toString('hex')} WHERE id=1`;await sql`DELETE FROM sessions`;return send(res,200,{ok:true},{'Set-Cookie':cookie('',0)});
+        if(!await sessionFor(req))return send(res,401,{error:'Sign in to change the password.'});const rows=await sql`SELECT salt,password_hash FROM admin WHERE id=1`;if(!rows.length||!matches(String(input.currentPassword||''),rows[0]))return send(res,401,{error:'Current password did not match.'});if(!validPassword(input.newPassword))return send(res,400,{error:'Choose a new password with at least 12 characters.'});const salt=randomBytes(16).toString('hex');await sql`UPDATE admin SET salt=${salt},password_hash=${scryptSync(input.newPassword,salt,64).toString('hex')} WHERE id=1`;await sql`DELETE FROM sessions`;return send(res,200,{ok:true},{'Set-Cookie':cookie('',0,capacitorRequest)});
       }
-      const token=randomBytes(32).toString('base64url'),hash=createHash('sha256').update(token).digest('hex'),expires=new Date(Date.now()+sessionDays*86400000);await sql`INSERT INTO sessions(token_hash,created_at,expires_at) VALUES(${hash},NOW(),${expires})`;await sql`DELETE FROM sessions WHERE expires_at<NOW()`;return send(res,200,{ok:true},{'Set-Cookie':cookie(token)});
+      const token=randomBytes(32).toString('base64url'),hash=createHash('sha256').update(token).digest('hex'),expires=new Date(Date.now()+sessionDays*86400000);await sql`INSERT INTO sessions(token_hash,created_at,expires_at) VALUES(${hash},NOW(),${expires})`;await sql`DELETE FROM sessions WHERE expires_at<NOW()`;return send(res,200,{ok:true},{'Set-Cookie':cookie(token,sessionDays*86400,capacitorRequest)});
     }
     if(url.pathname.startsWith('/api/')){
       if(!await sessionFor(req))return send(res,401,{error:'Sign in to continue.'});
       if(req.method==='GET'&&url.pathname==='/api/data'){const rows=await sql`SELECT document,updated_at,version FROM app_data WHERE id=1`;return send(res,200,{data:rows[0].document,updatedAt:rows[0].updated_at,version:rows[0].version})}
       if(req.method==='PUT'&&url.pathname==='/api/data'){
-        if(!sameOrigin(req))return send(res,403,{error:'Request origin rejected.'});const input=await body(req);if(!validData(input))return send(res,400,{error:'The saved data format is invalid.'});const expected=Number(req.headers['if-match']);if(!Number.isInteger(expected))return send(res,400,{error:'Missing data version.'});
+        if(!sameOrigin(req))return send(res,403,{error:'Request origin rejected.'});const input=await body(req);if(!validData(input))return send(res,400,{error:'The saved data format is invalid.'});for(const bill of input.bills){delete bill.photo;delete bill.photoCapturedAt}const expected=Number(req.headers['if-match']);if(!Number.isInteger(expected))return send(res,400,{error:'Missing data version.'});
         const updated=await sql`UPDATE app_data SET document=${JSON.stringify(input)}::jsonb,updated_at=NOW(),version=version+1 WHERE id=1 AND version=${expected} RETURNING version`;
         if(!updated.length){const current=await sql`SELECT version FROM app_data WHERE id=1`;return send(res,409,{error:'These records changed in another open app. Reload before saving again.',version:current[0].version})}return send(res,200,{ok:true,version:updated[0].version});
       }
@@ -113,7 +117,7 @@ const server=http.createServer(async(req,res)=>{
       }
       return send(res,404,{error:'API route not found.'});
     }
-    if(req.method!=='GET'&&req.method!=='HEAD')return send(res,405,{error:'Method not allowed.'});if(url.pathname!=='/'&&url.pathname!=='/index.html')return send(res,404,{error:'Not found.'});const html=await readFile(path.join(root,'index.html'));res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-cache','X-Content-Type-Options':'nosniff','Referrer-Policy':'same-origin','Content-Security-Policy':"default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; script-src 'self' 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"});res.end(html);
+    if(req.method!=='GET'&&req.method!=='HEAD')return send(res,405,{error:'Method not allowed.'});if(url.pathname!=='/'&&url.pathname!=='/index.html')return send(res,404,{error:'Not found.'});const html=await readFile(path.join(root,'index.html'));res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-cache','X-Content-Type-Options':'nosniff','Referrer-Policy':'same-origin','Content-Security-Policy':"default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; worker-src 'self' blob: https://cdn.jsdelivr.net; connect-src 'self' https://cdn.jsdelivr.net https://tessdata.projectnaptha.com; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"});res.end(html);
   }catch(error){console.error(error);send(res,error.status||500,{error:error.status?error.message:'Server error.'})}
 });
 server.on('error',error=>{console.error(`Roomwise could not start: ${error.message}`);process.exitCode=1});

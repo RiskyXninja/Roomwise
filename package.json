@@ -5,10 +5,20 @@
   "type": "module",
   "scripts": {
     "start": "node server.mjs",
-    "start:cloud": "node server-neon.mjs"
+    "start:cloud": "node server-neon.mjs",
+    "build": "node scripts/build.mjs",
+    "android:sync": "npm run build && cap sync android",
+    "android:apk": "npm run android:sync && cd android && gradlew.bat assembleDebug"
   },
   "dependencies": {
+    "@capacitor/android": "^8.6.0",
+    "@capacitor/cli": "^8.6.0",
+    "@capacitor/core": "^8.6.0",
+    "@neon/config": "^1.10.0",
+    "@neon/env": "^1.6.8",
     "pg": "^8.16.0"
   },
-  "engines": { "node": ">=22.13" }
+  "engines": {
+    "node": ">=22.13"
+  }
 }

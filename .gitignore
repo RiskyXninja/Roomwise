@@ -3,3 +3,11 @@ node_modules/
 *.sqlite-shm
 *.sqlite-wal
 .env
+.env.local
+.neon
+www/
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/capacitor-cordova-android-plugins/

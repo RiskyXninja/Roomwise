@@ -75,7 +75,7 @@ const MAX_BODY = 18 * 1024 * 1024;
 const attempts = new Map();
 
 function send(res, status, data, headers = {}) {
-  res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-origin', 'Content-Security-Policy': "default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; script-src 'self' 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'", ...headers });
+  res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-origin', 'Content-Security-Policy': "default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; worker-src 'self' blob: https://cdn.jsdelivr.net; connect-src 'self' https://cdn.jsdelivr.net https://tessdata.projectnaptha.com; base-uri 'none'; frame-ancestors 'none'; form-action 'self'", ...headers });
   res.end(JSON.stringify(data));
 }
 function cookie(name, value, maxAge = SESSION_DAYS * 86400) {
@@ -207,6 +207,7 @@ const server = http.createServer(async (req, res) => {
         if (!sameOrigin(req)) return send(res, 403, { error: 'Request origin rejected.' });
         const input = await body(req);
         if (!validateDocument(input)) return send(res, 400, { error: 'The saved data format is invalid.' });
+        for (const bill of input.bills) { delete bill.photo; delete bill.photoCapturedAt; }
         const updatedAt = new Date().toISOString();
         db.exec('BEGIN IMMEDIATE');
         try {
@@ -232,7 +233,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method !== 'GET' && req.method !== 'HEAD') return send(res, 405, { error: 'Method not allowed.' });
     if (url.pathname !== '/' && url.pathname !== '/index.html') return send(res, 404, { error: 'Not found.' });
     const html = await readFile(path.join(root, 'index.html'));
-    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-origin', 'Content-Security-Policy': "default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; script-src 'self' 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'" });
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-origin', 'Content-Security-Policy': "default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; worker-src 'self' blob: https://cdn.jsdelivr.net; connect-src 'self' https://cdn.jsdelivr.net https://tessdata.projectnaptha.com; base-uri 'none'; frame-ancestors 'none'; form-action 'self'" });
     res.end(html);
   } catch (error) {
     console.error(error);

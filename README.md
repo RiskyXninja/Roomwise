@@ -14,9 +14,22 @@ The task is also available from the Run and Debug panel as a server launch confi
 
 ## Using the app
 
-Add rooms and their fixed rent and electricity rate, then add tenants to occupied rooms. Create calendar-month bills from each room's meter readings. The bill retains its original rent and rate. Payments are allocated to oldest balances first, with overpayments kept as tenant credits. Tenant history stays attached to old bills after move-out. Meter photos can be captured from a phone; OCR is only attempted where the browser exposes the experimental `TextDetector` API, so always verify the reading.
+Add rooms and their fixed rent and electricity rate, then add tenants to occupied rooms. Create calendar-month bills from each room's meter readings. The bill retains its original rent and rate. Payments are allocated to oldest balances first, with overpayments kept as tenant credits. Tenant history stays attached to old bills after move-out. Meter images are OCR-scanned on the device and discarded; only the corrected reading and bill calculation are saved. Always verify a suggested OCR reading.
 
 Download a JSON backup from Reports. Restore it there to replace the current data. Download a formatted `.xlsx` report. Invoices can be printed or saved as PDF from the browser print dialog. Change the admin password from the settings button; existing sessions are then signed out.
+
+After calculating a bill, use **Share on WhatsApp** to open a prefilled message addressed to the tenant's saved contact number.
+
+## Android APK
+
+The Android app packages the responsive Roomwise interface and connects securely to the same Neon-backed Render service as the web app. It needs an internet connection to sign in and sync records. Build a debug APK on Windows with Android Studio, Android SDK, and Java 21 installed:
+
+```powershell
+npm install
+npm run android:apk
+```
+
+The installable APK is created at `android/app/build/outputs/apk/debug/app-debug.apk`. Copy it to an Android phone and open it to install. Camera meter images are processed on-device and are not included in saved bills or backups. If the Render service URL changes, update `nativeApiBase` in `index.html` and rebuild.
 
 ## Free cloud deployment
 

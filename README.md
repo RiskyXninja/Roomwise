@@ -1,6 +1,6 @@
 # Roomwise rental management
 
-Responsive single-admin rental billing app for desktop browsers and Android. The server uses Node.js built-ins and SQLite; no third-party packages are required.
+Responsive single-admin rental billing app for desktop browsers and Android. Local development uses Node.js built-ins and SQLite. The free cloud deployment uses Neon Postgres through Neon's serverless driver.
 
 ## Run from VS Code
 
@@ -18,11 +18,18 @@ Add rooms and their fixed rent and electricity rate, then add tenants to occupie
 
 Download a JSON backup from Reports. Restore it there to replace the current data. Download a formatted `.xlsx` report. Invoices can be printed or saved as PDF from the browser print dialog. Change the admin password from the settings button; existing sessions are then signed out.
 
-## Android and deployment
+## Free cloud deployment
 
-For phone use, deploy the Node server on a machine or hosting service that the phone can reach. Put it behind HTTPS before exposing it beyond the computer. Set `NODE_ENV=production` behind a TLS reverse proxy so session cookies are marked Secure. The server defaults to loopback; set `HOST=0.0.0.0` only when you have configured the network firewall and HTTPS access. The app does not use a static-only host because billing data and admin sessions are handled by the server.
+1. Create a Neon Postgres project on its Free plan and copy the pooled connection string from the project’s **Connect** panel. Keep this URL private; never commit it to GitHub.
+2. Push the app files, including `server-neon.mjs` and `render.yaml`, to the GitHub `main` branch.
+3. In Render, choose **New → Blueprint**, connect the repository, and apply the Blueprint. Render prompts for `DATABASE_URL`; paste the Neon connection string there.
+4. Once deployment succeeds, open its `onrender.com` URL and create the admin password.
 
-Keep the downloaded JSON export somewhere outside the server machine. For a raw SQLite file copy, stop the server first so the database and its write-ahead log stay consistent. The server does not currently run scheduled off-device backups or cloud synchronization.
+The Blueprint uses Render’s free web-service plan and runs `server-neon.mjs`. The app initializes its tables on startup. Render serves the app over HTTPS; its free web service sleeps after 15 minutes without traffic, so the first visit after idle can take about a minute. Neon Free scales database compute to zero when idle; its database storage remains separate from the Render service filesystem.
+
+Before moving from the local SQLite app, download a JSON backup from Reports. After the deployed app starts, create its admin password and restore that JSON backup from Reports. The cloud app and local app use separate databases until you restore the backup. Keep a copy of the JSON backup somewhere safe; neither free service provides a substitute for a regular independent backup.
+
+The SQLite local mode remains available through `npm start`. To run the Neon mode locally, install dependencies and set `DATABASE_URL`, then run `npm run start:cloud`.
 
 ## Manual acceptance checklist
 

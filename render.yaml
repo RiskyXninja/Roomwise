@@ -2,15 +2,13 @@ services:
   - type: web
     name: roomwise
     runtime: node
-    plan: starter
+    plan: free
     buildCommand: npm install
-    startCommand: npm start
+    startCommand: npm run start:cloud
     healthCheckPath: /healthz
-    disk:
-      name: roomwise-data
-      mountPath: /opt/render/project/src/data
-      sizeGB: 1
     envVars:
+      - key: DATABASE_URL
+        sync: false
       - key: HOST
         value: 0.0.0.0
       - key: NODE_ENV

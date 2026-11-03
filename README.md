@@ -1,6 +1,6 @@
 # Roomwise rental management
 
-Responsive single-admin rental billing app for desktop browsers and Android. Local development uses Node.js built-ins and SQLite. The free cloud deployment uses Neon Postgres through Neon's serverless driver.
+Responsive single-admin rental billing app for desktop browsers and Android. Local development uses Node.js built-ins and SQLite. The free cloud deployment uses Neon Postgres through a small `pg` connection pool.
 
 ## Run from VS Code
 
@@ -25,7 +25,7 @@ Download a JSON backup from Reports. Restore it there to replace the current dat
 3. In Render, choose **New → Blueprint**, connect the repository, and apply the Blueprint. Render prompts for `DATABASE_URL`; paste the Neon connection string there.
 4. Once deployment succeeds, open its `onrender.com` URL and create the admin password.
 
-The Blueprint uses Render’s free web-service plan and runs `server-neon.mjs`. The app initializes its tables on startup. Render serves the app over HTTPS; its free web service sleeps after 15 minutes without traffic, so the first visit after idle can take about a minute. Neon Free scales database compute to zero when idle; its database storage remains separate from the Render service filesystem.
+The Blueprint uses Render’s free web-service plan and runs `server-neon.mjs`. It applies the versioned SQL migration in `migrations/` once, then initializes the app state. Render serves the app over HTTPS; its free web service sleeps after 15 minutes without traffic, so the first visit after idle can take about a minute. Neon Free scales database compute to zero when idle; its database storage remains separate from the Render service filesystem.
 
 Before moving from the local SQLite app, download a JSON backup from Reports. After the deployed app starts, create its admin password and restore that JSON backup from Reports. The cloud app and local app use separate databases until you restore the backup. Keep a copy of the JSON backup somewhere safe; neither free service provides a substitute for a regular independent backup.
 

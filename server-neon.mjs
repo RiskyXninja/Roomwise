@@ -4,17 +4,31 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomBytes, scryptSync, timingSafeEqual, createHash } from 'node:crypto';
 import { deflateRawSync } from 'node:zlib';
-import { neon } from '@neondatabase/serverless';
+import pg from 'pg';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 if (!process.env.DATABASE_URL) throw new Error('Set DATABASE_URL to your Neon Postgres connection string.');
-const sql = neon(process.env.DATABASE_URL);
+const { Pool } = pg;
+const pool = new Pool({ connectionString: process.env.DATABASE_URL, max: 2, idleTimeoutMillis: 30_000, connectionTimeoutMillis: 10_000 });
+function sql(strings, ...values) {
+  const text = strings.reduce((out, part, i) => out + part + (i < values.length ? `$${i + 1}` : ''), '');
+  return pool.query(text, values).then(result => result.rows);
+}
+const migrationId = '001_initial';
+await pool.query('CREATE TABLE IF NOT EXISTS schema_migrations (id TEXT PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW())');
+const applied = await pool.query('SELECT id FROM schema_migrations WHERE id=$1', [migrationId]);
+if (!applied.rowCount) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query(await readFile(path.join(root, 'migrations', `${migrationId}.sql`), 'utf8'));
+    await client.query('INSERT INTO schema_migrations(id) VALUES($1)', [migrationId]);
+    await client.query('COMMIT');
+  } catch (error) { await client.query('ROLLBACK'); throw error; }
+  finally { client.release(); }
+}
 const initialData = { rooms: [], tenants: [], bills: [], payments: [], audit: [], settings: { owner: 'Rental Admin', currency: '₹' } };
-await sql`CREATE TABLE IF NOT EXISTS admin (id SMALLINT PRIMARY KEY CHECK (id=1), salt TEXT NOT NULL, password_hash TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`;
-await sql`CREATE TABLE IF NOT EXISTS sessions (token_hash TEXT PRIMARY KEY, created_at TIMESTAMPTZ NOT NULL, expires_at TIMESTAMPTZ NOT NULL)`;
-await sql`CREATE TABLE IF NOT EXISTS app_data (id SMALLINT PRIMARY KEY CHECK (id=1), document JSONB NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), version INTEGER NOT NULL DEFAULT 0)`;
-await sql`INSERT INTO app_data(id,document) VALUES(1,${JSON.stringify(initialData)}::jsonb) ON CONFLICT(id) DO NOTHING`;
-
+await pool.query('INSERT INTO app_data(id,document) VALUES(1,$1::jsonb) ON CONFLICT(id) DO NOTHING', [JSON.stringify(initialData)]);
 const port = Number(process.env.PORT || 3000);
 const host = process.env.HOST || '127.0.0.1';
 const production = process.env.NODE_ENV === 'production';
@@ -104,4 +118,4 @@ const server=http.createServer(async(req,res)=>{
 });
 server.on('error',error=>{console.error(`Roomwise could not start: ${error.message}`);process.exitCode=1});
 server.listen(port,host,()=>console.log(`Roomwise (Neon) listening at http://${host}:${port}`));
-for(const sig of ['SIGINT','SIGTERM'])process.on(sig,()=>server.close(()=>process.exit(0)));
+for(const sig of ['SIGINT','SIGTERM'])process.on(sig,()=>server.close(async()=>{await pool.end();process.exit(0)}));

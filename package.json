@@ -8,7 +8,7 @@
     "start:cloud": "node server-neon.mjs"
   },
   "dependencies": {
-    "@neondatabase/serverless": "^1.0.0"
+    "pg": "^8.16.0"
   },
   "engines": { "node": ">=22.13" }
 }

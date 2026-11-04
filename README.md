@@ -16,7 +16,7 @@ The task is also available from the Run and Debug panel as a server launch confi
 
 Add rooms and their fixed rent and electricity rate, then add tenants to occupied rooms. Create calendar-month bills from each room's meter readings. The bill retains its original rent and rate. Payments are allocated to oldest balances first, with overpayments kept as tenant credits. Tenant history stays attached to old bills after move-out. Meter images are OCR-scanned on the device and discarded; only the corrected reading and bill calculation are saved. Always verify a suggested OCR reading.
 
-Download a JSON backup from Reports. Restore it there to replace the current data. Download a formatted `.xlsx` report. Invoices can be printed or saved as PDF from the browser print dialog. Change the admin password from the settings button; existing sessions are then signed out.
+Download or restore a JSON backup from Settings. Download a formatted `.xlsx` report. Invoices can be printed or saved as PDF from the browser print dialog. Change the admin password from the settings button; existing sessions are then signed out.
 
 After calculating a bill, use **Share on WhatsApp** to open a prefilled message addressed to the tenant's saved contact number.
 
@@ -40,7 +40,7 @@ The installable APK is created at `android/app/build/outputs/apk/debug/app-debug
 
 The Blueprint uses Render’s free web-service plan and runs `server-neon.mjs`. It applies the versioned SQL migration in `migrations/` once, then initializes the app state. Render serves the app over HTTPS; its free web service sleeps after 15 minutes without traffic, so the first visit after idle can take about a minute. Neon Free scales database compute to zero when idle; its database storage remains separate from the Render service filesystem.
 
-Before moving from the local SQLite app, download a JSON backup from Reports. After the deployed app starts, create its admin password and restore that JSON backup from Reports. The cloud app and local app use separate databases until you restore the backup. Keep a copy of the JSON backup somewhere safe; neither free service provides a substitute for a regular independent backup.
+Before moving from the local SQLite app, download a JSON backup from Reports. After the deployed app starts, create its admin password and restore that JSON backup from Settings. The cloud app and local app use separate databases until you restore the backup. Keep a copy of the JSON backup somewhere safe; neither free service provides a substitute for a regular independent backup.
 
 The SQLite local mode remains available through `npm start`. To run the Neon mode locally, install dependencies and set `DATABASE_URL`, then run `npm run start:cloud`.
 

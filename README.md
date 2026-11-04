@@ -16,13 +16,13 @@ The task is also available from the Run and Debug panel as a server launch confi
 
 Add rooms and their fixed rent and electricity rate, then add tenants to occupied rooms. Create calendar-month bills from each room's meter readings. The bill retains its original rent and rate. Payments are allocated to oldest balances first, with overpayments kept as tenant credits. Tenant history stays attached to old bills after move-out. Meter images are OCR-scanned on the device and discarded; only the corrected reading and bill calculation are saved. Always verify a suggested OCR reading.
 
-Download or restore a JSON backup from Settings. Download a formatted `.xlsx` report. Invoices can be printed or saved as PDF from the browser print dialog. Change the admin password from the settings button; existing sessions are then signed out.
+Create or restore a JSON backup from Settings. Export a formatted `.xlsx` report. On Android, use the system share sheet to save or share backups, reports, and invoice PDFs; on desktop, download reports and backups or print invoices to PDF. Admin profile and password options are in Settings.
 
 After calculating a bill, use **Share on WhatsApp** to open a prefilled message addressed to the tenant's saved contact number.
 
 ## Android APK
 
-The Android app packages the responsive Roomwise interface and connects securely to the same Neon-backed Render service as the web app. It needs an internet connection to sign in and sync records. Build a debug APK on Windows with Android Studio, Android SDK, and Java 21 installed:
+Android file exports and invoice PDFs use the system share sheet. The Android app packages the responsive Roomwise interface and connects securely to the same Neon-backed Render service as the web app. It needs an internet connection to sign in and sync records. Build a debug APK on Windows with Android Studio, Android SDK, and Java 21 installed:
 
 ```powershell
 npm install

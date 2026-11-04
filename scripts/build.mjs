@@ -19,4 +19,10 @@ for (const [index, match] of inlineScripts.entries()) new Script(match[1], { fil
 const webDir = path.join(root, 'www');
 await mkdir(webDir, { recursive: true });
 await copyFile(path.join(root, 'index.html'), path.join(webDir, 'index.html'));
+await copyFile(path.join(root, 'node_modules/@capacitor/core/dist/capacitor.js'), path.join(webDir, 'capacitor.js'));
+const vendorDir = path.join(webDir, 'vendor');
+await mkdir(vendorDir, { recursive: true });
+await copyFile(path.join(root, 'node_modules/@capacitor/synapse/dist/synapse.js'), path.join(vendorDir, 'synapse.js'));
+await copyFile(path.join(root, 'node_modules/@capacitor/filesystem/dist/plugin.js'), path.join(vendorDir, 'filesystem.js'));
+await copyFile(path.join(root, 'node_modules/@capacitor/share/dist/plugin.js'), path.join(vendorDir, 'share.js'));
 console.log(`Web app prepared for Android (${inlineScripts.length} inline scripts checked).`);

@@ -45,13 +45,13 @@ function makeXlsx(rows) {
   const col = n => { let out = ''; for (n++; n; n = Math.floor((n - 1) / 26)) out = String.fromCharCode(65 + (n - 1) % 26) + out; return out; };
   const sheetRows = rows.map((row, ri) => `<row r="${ri + 1}">${row.map((value, ci) => {
     const ref = `${col(ci)}${ri + 1}`;
-    return typeof value === 'number' && Number.isFinite(value) ? `<c r="${ref}"><v>${value}</v></c>` : `<c r="${ref}" t="inlineStr"><is><t xml:space="preserve">${xmlEscape(value)}</t></is></c>`;
+    return typeof value === 'number' && Number.isFinite(value) ? `<c r="${ref}" s="${ri===0?1:2}"><v>${value}</v></c>` : `<c r="${ref}" s="${ri===0?1:0}" t="inlineStr"><is><t xml:space="preserve">${xmlEscape(value)}</t></is></c>`;
   }).join('')}</row>`).join('');
   const files = [
-    ['[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>'],
+    ['[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>'],
     ['_rels/.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>'],
-    ['xl/workbook.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Roomwise report" sheetId="1" r:id="rId1"/></sheets></workbook>'],
-    ['xl/_rels/workbook.xml.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>'],
+    ['xl/styles.xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Aptos"/></font><font><b/><color rgb="FFFFFFFF"/><sz val="11"/><name val="Aptos"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF6D3CC7"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border><border><bottom style="thin"><color rgb="FFDAD2EC"/></bottom><left/><right/><top/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="3"><xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/><xf numFmtId="4" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>'],['xl/workbook.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Roomwise report" sheetId="1" r:id="rId1"/></sheets></workbook>'],
+    ['xl/_rels/workbook.xml.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>'],
     ['xl/worksheets/sheet1.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><sheetFormatPr defaultRowHeight="16"/><sheetData>${sheetRows}</sheetData><autoFilter ref="A1:O${rows.length}"/></worksheet>`]
   ];
   const local = [], central = []; let offset = 0;
@@ -136,6 +136,7 @@ function validateDocument(d) {
   if (!d || typeof d !== 'object' || !Array.isArray(d.rooms) || !Array.isArray(d.tenants) || !Array.isArray(d.bills) || !Array.isArray(d.payments) || !Array.isArray(d.audit)) return false;
   if (d.rooms.length > 100000 || d.tenants.length > 100000 || d.bills.length > 200000 || d.payments.length > 500000 || d.audit.length > 5000) return false;
   if (!['rooms','tenants','bills','payments','audit'].every(key => d[key].every(item => item && typeof item === 'object' && !Array.isArray(item)))) return false;
+  const roomNames=d.rooms.map(r=>String(r.name||'').trim().toLocaleLowerCase());if(roomNames.some((name,i)=>!name||roomNames.indexOf(name)!==i))return false;
   return true;
 }
 const server = http.createServer(async (req, res) => {
@@ -202,6 +203,22 @@ const server = http.createServer(async (req, res) => {
       if (req.method === 'GET' && url.pathname === '/api/data') {
         const row = db.prepare('SELECT updated_at,version FROM metadata WHERE id=1').get();
         return send(res, 200, { data: readDocument(), updatedAt: row.updated_at, version: row.version });
+      }
+      if (req.method === 'POST' && url.pathname === '/api/changes') {
+        if (!sameOrigin(req)) return send(res, 403, { error: 'Request origin rejected.' });
+        const patch=await body(req), keys=['rooms','tenants','bills','payments','audit'];
+        if(!patch||!patch.changes||!patch.deleted||keys.some(k=>!Array.isArray(patch.changes[k]||[])||!Array.isArray(patch.deleted[k]||[]))||Object.values(patch.changes).flat().some(x=>!x||typeof x!=='object'||Array.isArray(x)))return send(res,400,{error:'The record changes are invalid.'});
+        db.exec('BEGIN IMMEDIATE');try{
+          const doc=readDocument();for(const k of keys){const ids=new Set((patch.deleted[k]||[]).map(String));doc[k]=doc[k].filter(x=>!ids.has(String(x.id)));for(const item of patch.changes[k]||[]){if(k==='bills'){delete item.photo;delete item.photoCapturedAt}const i=doc[k].findIndex(x=>String(x.id)===String(item.id));if(i<0)doc[k].push(item);else doc[k][i]=item}}
+          if(patch.changes.settings&&typeof patch.changes.settings==='object')doc.settings=patch.changes.settings;
+          if(!validateDocument(doc))throw Object.assign(new Error('Room names must be unique, and the saved records must be valid.'),{status:400});
+          const del=db.prepare('DELETE FROM records WHERE collection=? AND record_id=?');for(const k of keys)for(const id of patch.deleted[k]||[])del.run(k,String(id));
+          const upsert=db.prepare('INSERT INTO records(collection,record_id,position,document) VALUES(?,?,?,?) ON CONFLICT(collection,record_id) DO UPDATE SET document=excluded.document');
+          for(const k of keys)for(const item of patch.changes[k]||[]){const existing=db.prepare('SELECT position FROM records WHERE collection=? AND record_id=?').get(k,String(item.id));let position=existing?.position;if(position===undefined){const aggregate=db.prepare('SELECT '+(k==='audit'?'COALESCE(MIN(position),0)-1':'COALESCE(MAX(position),-1)+1')+' AS p FROM records WHERE collection=?').get(k);position=aggregate.p}upsert.run(k,String(item.id),position,JSON.stringify(item))}
+          if(patch.changes.settings)db.prepare('UPDATE app_settings SET document=? WHERE id=1').run(JSON.stringify(doc.settings));
+          db.prepare('UPDATE metadata SET updated_at=?,version=version+1 WHERE id=1').run(new Date().toISOString());db.exec('COMMIT');
+        }catch(error){db.exec('ROLLBACK');return send(res,error.status||500,{error:error.message||'Could not save record changes.'})}
+        return send(res,200,{ok:true,version:db.prepare('SELECT version FROM metadata WHERE id=1').get().version});
       }
       if (req.method === 'PUT' && url.pathname === '/api/data') {
         if (!sameOrigin(req)) return send(res, 403, { error: 'Request origin rejected.' });
